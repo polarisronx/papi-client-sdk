@@ -27,6 +27,7 @@ public class PapiClient {
     // ak 和 sk 由平台提供
     private String accessKey;
     private String secretKey;
+    public static final String GATEWAY_HOST = "http://localhost:8090";
 
     public PapiClient (String accessKey, String secretKey){
         this.accessKey = accessKey;
@@ -61,7 +62,7 @@ public class PapiClient {
         //可以单独传入http参数，这样参数会自动做URL编码，拼接在URL中
         HashMap<String, Object> paramMap = new HashMap<>();
         paramMap.put("name", name);
-        String result = HttpUtil.get("http://localhost:8123/api/name/a", paramMap);
+        String result = HttpUtil.get(GATEWAY_HOST+"/api/name/a", paramMap);
         log.info("get请求结果：{}", result);
         return result;
     }
@@ -70,7 +71,7 @@ public class PapiClient {
         //可以单独传入http参数，这样参数会自动做URL编码，拼接在URL中
         HashMap<String, Object> paramMap = new HashMap<>();
         paramMap.put("name", name);
-        String result = HttpUtil.post("http://localhost:8123/api/name/b", paramMap);
+        String result = HttpUtil.post(GATEWAY_HOST+"/api/name/b", paramMap);
         log.info("post1请求结果：{}", result);
         return result;
     }
@@ -79,7 +80,7 @@ public class PapiClient {
         // 将User对象转换为JSON格式的字符串
         String jsonStr = JSONUtil.toJsonStr(user);
         // 使用HttpRequest库发送POST请求，并获取服务器的响应
-        HttpResponse httpResponse = HttpRequest.post("http://localhost:8123/api/name/c")
+        HttpResponse httpResponse = HttpRequest.post(GATEWAY_HOST+"/api/name/c")
                 .body(jsonStr)// 将json字符串设置为请求体
                 .addHeaders(getHeaders(jsonStr))// 添加请求头，携带AK和SK
                 .execute();// 执行请求
