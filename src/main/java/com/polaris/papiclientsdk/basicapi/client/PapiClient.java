@@ -1,4 +1,4 @@
-package com.polaris.papiclientsdk.client;
+package com.polaris.papiclientsdk.basicapi.client;
 
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.http.HttpRequest;
@@ -6,11 +6,15 @@ import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 
-import com.polaris.papiclientsdk.model.User;
+import com.polaris.papiclientsdk.basicapi.model.request.GetUsernameRequest;
+import com.polaris.papiclientsdk.common.model.AbstractClient;
+import com.polaris.papiclientsdk.common.model.Credential;
+import com.polaris.papiclientsdk.common.profile.HttpProfile;
 import lombok.extern.slf4j.Slf4j;
 import java.util.HashMap;
+import java.util.Map;
 
-import static com.polaris.papiclientsdk.utils.SignUtils.genSign;
+import static com.polaris.papiclientsdk.common.utils.SignUtils.genSign;
 
 
 /**
@@ -22,17 +26,16 @@ import static com.polaris.papiclientsdk.utils.SignUtils.genSign;
  * Description
  */
 @Slf4j
-public class PapiClient {
-
-    // ak 和 sk 由平台提供
-    private String accessKey;
-    private String secretKey;
+public class PapiClient extends AbstractClient {
+    public static String VERSION = "0.0.2-2024-04";
     public static final String GATEWAY_HOST = "http://localhost:8090";
 
-    public PapiClient (String accessKey, String secretKey){
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
+    public PapiClient (Credential credential){
+        super(credential);
     }
+
+
+
 
     /*
      * 构造请求头的私有方法
@@ -41,7 +44,9 @@ public class PapiClient {
      * @create 2024/3/13
      **/
 
-    private HashMap<String, String> getHeaders(String body) {
+    private HashMap<String, String> getHeaders(Credential credential,String body) {
+        String accessKey = credential.getAccessKey();
+        String secretKey = credential.getSecretKey();
         HashMap<String, String> headers = new HashMap<>();
         headers.put("accessKey", accessKey);
         // 添加4位数字的随机数
@@ -58,27 +63,27 @@ public class PapiClient {
     }
 
 
-    public String getNameByGet(String name){
+    public String getNameByGet(GetUsernameRequest request){
         //可以单独传入http参数，这样参数会自动做URL编码，拼接在URL中
         HashMap<String, Object> paramMap = new HashMap<>();
-        paramMap.put("name", name);
+        paramMap.put("name", request.getUsername());
         String result = HttpUtil.get(GATEWAY_HOST+"/api/name/a", paramMap);
         log.info("get请求结果：{}", result);
         return result;
     }
 
-    public String getNameByPost1(String name){
+    public String getNameByPost1(GetUsernameRequest request){
         //可以单独传入http参数，这样参数会自动做URL编码，拼接在URL中
         HashMap<String, Object> paramMap = new HashMap<>();
-        paramMap.put("name", name);
+        paramMap.put("name", request.getUsername());
         String result = HttpUtil.post(GATEWAY_HOST+"/api/name/b", paramMap);
         log.info("post1请求结果：{}", result);
         return result;
     }
 
-    public String getNameByPost2(User user){
+    public String getNameByPost2(GetUsernameRequest request){
         // 将User对象转换为JSON格式的字符串
-        String jsonStr = JSONUtil.toJsonStr(user);
+        String jsonStr = JSONUtil.toJsonStr(request);
         // 使用HttpRequest库发送POST请求，并获取服务器的响应
         HttpResponse httpResponse = HttpRequest.post(GATEWAY_HOST+"/api/name/c")
                 .body(jsonStr)// 将json字符串设置为请求体
@@ -90,4 +95,20 @@ public class PapiClient {
         log.info("post2请求结果：{}",result);
         return result;
     }
+
+    /*
+     * 通用的get请求处理
+     * @param null
+     * @return
+     * @author polaris
+     * @create 2024/3/28
+     **/
+    public String getStringByGet(String url, Map<String, Object> paramMap){
+        String result = HttpRequest.get(url)
+                .form(paramMap)
+                .execute().body();
+        log.info("get请求结果：{}", result);
+        return result;
+    }
 }
+

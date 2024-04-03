@@ -1,6 +1,7 @@
 package com.polaris.papiclientsdk;
 
-import com.polaris.papiclientsdk.client.PapiClient;
+import com.polaris.papiclientsdk.basicapi.client.PapiClient;
+import com.polaris.papiclientsdk.common.model.Credential;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +26,6 @@ public class PapiClientConfig {
     @Bean
     public PapiClient papiClient(){
         // 传入AK和SK 创建一个 PApi 客户端
-        return new PapiClient(accessKey,secretKey);
+        return new PapiClient(new Credential(accessKey,secretKey));
     }
 }
