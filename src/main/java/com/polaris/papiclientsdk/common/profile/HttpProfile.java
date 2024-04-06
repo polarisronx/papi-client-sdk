@@ -16,10 +16,16 @@ public class HttpProfile {
     private int port;
     private String path;
     private String method;
-    private String protocol;
-    private String contentType;
-    private String charset;
-    private String userAgent;
-    private String cookie;
-    private String GATEWAY_HOST;
+    private String protocol="http";
+    private String contentType="application/json";
+    private String charset="UTF-8";
+
+    public HttpProfile (String endpoint, int port, String path, String method){
+        this.endpoint=endpoint;
+        this.port=port;
+        this.path=path;
+        this.method=method;
+    }
+// todo 暂不支持代理   private String userAgent;
+
 }
