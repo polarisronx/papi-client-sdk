@@ -3,6 +3,7 @@ package com.polaris.papiclientsdk.common.utils;
 import cn.hutool.crypto.digest.DigestAlgorithm;
 import cn.hutool.crypto.digest.Digester;
 import com.polaris.papiclientsdk.common.execption.PapiClientSDKException;
+import com.polaris.papiclientsdk.common.model.Credential;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -12,6 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Date;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 
 /**
  * @Author polaris
@@ -38,17 +42,38 @@ public class SignUtils {
      * Signature process version 3.
      */
     public static final String SIGN_TC3_256 = "TC3-HMAC-SHA256";
-    public static String genSign(String body,String secretKey){
+    public static String getAuthorizationByHMACSHA256(String service, String timestamp, Credential credential,String canonicalRequest,String signedHeaders) throws PapiClientSDKException{
+        String secretId = credential.getAccessKey();
+        String secretKey = credential.getSecretKey();
 
+        // 当前系统时间格式化
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String date = sdf.format(new Date(Long.parseLong(timestamp + "000")));// 2024-4-7 数据库中是精确到秒，统一
 
+        String credentialScope = date + "/" + service + "/" + "v3_request";
+        String hashedCanonicalRequest =
+                SignUtils.sha256Hex(canonicalRequest.getBytes(StandardCharsets.UTF_8));
+        String stringToSign =
+                "papi3-HMAC-SHA256\n" + timestamp + "\n" + credentialScope + "\n" + hashedCanonicalRequest;
 
-        // todo 选择加密算法
-        // 使用SHA25算法的Digester
-        Digester digester = new Digester(DigestAlgorithm.SHA256);
-        // 签名内容 body + 密钥 拼接
-        // 也可以把 nonce timestamp 都加入到 签名中增加复杂度，但这些参数都是要一一获取校验的，因此为了简化，这里不加入这些参数
-        String signContent = body +"."+ secretKey;
-        return digester.digestHex(signContent);
+        byte[] secretDate = hmac256(("Papi3" + secretKey).getBytes(StandardCharsets.UTF_8), date);
+        byte[] secretService = hmac256(secretDate, service);
+        byte[] secretSigning = hmac256(secretService, "papi3_request");
+        String signature =
+                DatatypeConverter.printHexBinary(SignUtils.hmac256(secretSigning, stringToSign)).toLowerCase();
+        return
+                "papi3-HMAC-SHA256 "
+                        + "Credential="
+                        + secretId
+                        + "/"
+                        + credentialScope
+                        + ", "
+                        + "SignedHeaders="
+                        + signedHeaders
+                        + ", "
+                        + "Signature="
+                        + signature;
     }
 
     public static String sha256Hex(String s) throws PapiClientSDKException{

@@ -25,13 +25,12 @@ public class PapiClientConfig {
     private String accessKey;
     private String secretKey;
     private String endpoint;
-    private int port;
     private String path;
     private String method;
     @Bean
     @ConfigurationProperties(prefix = "papi.client.http")
     public PapiClient papiClient(){
         // 传入AK和SK 创建一个 PApi 客户端
-        return new PapiClient(new Credential(accessKey,secretKey),new HttpProfile(endpoint,port,path,method));
+        return new PapiClient(new Credential(accessKey,secretKey),new HttpProfile(endpoint,path,method));
     }
 }

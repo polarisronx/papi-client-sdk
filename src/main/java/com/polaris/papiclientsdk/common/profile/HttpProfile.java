@@ -20,9 +20,8 @@ public class HttpProfile {
     private String contentType="application/json";
     private String charset="UTF-8";
 
-    public HttpProfile (String endpoint, int port, String path, String method){
+    public HttpProfile (String endpoint, String path, String method){
         this.endpoint=endpoint;
-        this.port=port;
         this.path=path;
         this.method=method;
     }

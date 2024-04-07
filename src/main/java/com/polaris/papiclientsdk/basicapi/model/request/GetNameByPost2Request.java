@@ -1,10 +1,12 @@
 package com.polaris.papiclientsdk.basicapi.model.request;
 
-import com.polaris.papiclientsdk.basicapi.model.response.GetUsernameResponse;
+import com.polaris.papiclientsdk.basicapi.model.response.GetNameByPostResponse;
 import com.polaris.papiclientsdk.common.enums.RequestMethodEnum;
 import com.polaris.papiclientsdk.common.model.AbstractRequest;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import java.util.HashMap;
 
 /**
  * @Author polaris
@@ -16,7 +18,7 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class GetUsernameRequest extends AbstractRequest<GetUsernameResponse> {
+public class GetNameByPost2Request extends AbstractRequest<GetNameByPostResponse> {
     private String username;
 
     @Override
@@ -30,7 +32,12 @@ public class GetUsernameRequest extends AbstractRequest<GetUsernameResponse> {
     }
 
     @Override
-    public Class<GetUsernameResponse> getResponseClass (){
-        return GetUsernameResponse.class;
+    public Class<GetNameByPostResponse> getResponseClass (){
+        return GetNameByPostResponse.class;
+    }
+
+    @Override
+    public void toMap (HashMap<String, String> params, String prefix){
+        this.setParamSimple(params, prefix + "AccountType", this.username);
     }
 }

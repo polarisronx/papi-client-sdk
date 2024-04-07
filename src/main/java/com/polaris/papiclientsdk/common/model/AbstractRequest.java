@@ -29,6 +29,7 @@ public abstract class AbstractRequest<T extends CommonResponse> {
     private HashMap<String, Object> customizedParams = new HashMap<>();
     private boolean skipSign = false;
     private boolean isUnsignedPayload;
+    private String method;
 
     public static <O extends AbstractRequest> String toJsonString (O obj){
         return toJsonObject(obj).toString();
@@ -86,10 +87,18 @@ public abstract class AbstractRequest<T extends CommonResponse> {
         return customizedParams;
     }
 
-    public void toMap (HashMap<String, String> params, String prefix){
+    public abstract void toMap (HashMap<String, String> params, String prefix);
+    protected <V> void setParamSimple(HashMap<String, String> map, String key, V value) {
+        if (value != null) {
 
+            key = key.substring(0, 1).toUpperCase() + key.substring(1);
+            key = key.replace("_", ".");
+            map.put(key, String.valueOf(value));
+        }
     }
-
+    public boolean getIsUnsignedPayload(){
+        return this.isUnsignedPayload;
+    }
     public boolean getSkipSign (){
         return  this.skipSign;
     }

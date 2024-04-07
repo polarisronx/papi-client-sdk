@@ -2,6 +2,7 @@ package com.polaris.papiclientsdk.basicapi.model.response;
 
 import com.polaris.papiclientsdk.common.model.CommonResponse;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * @Author polaris
@@ -11,7 +12,8 @@ import lombok.Data;
  * Package com.polaris.papiclientsdk.basicapi.model.response
  * Description
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class GetUsernameResponse extends CommonResponse {
+public class GetNameByPostResponse extends CommonResponse {
     private String username;
 }
