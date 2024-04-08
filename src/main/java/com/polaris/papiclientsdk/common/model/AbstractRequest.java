@@ -29,7 +29,7 @@ public abstract class AbstractRequest<T extends CommonResponse> {
     private HashMap<String, Object> customizedParams = new HashMap<>();
     private boolean skipSign = false;
     private boolean isUnsignedPayload;
-    private String method;
+    private String method; // 全大写
 
     public static <O extends AbstractRequest> String toJsonString (O obj){
         return toJsonObject(obj).toString();

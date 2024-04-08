@@ -1,8 +1,9 @@
 package com.polaris.papiclientsdk.common.model;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
-import cn.hutool.json.JSONUtil;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -14,24 +15,21 @@ import com.polaris.papiclientsdk.common.utils.SignUtils;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.sql.Date;
-import java.text.SimpleDateFormat;
+
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
+import java.util.Objects;
 
-import static com.polaris.papiclientsdk.common.utils.SignUtils.SIGN_SHA1;
-import static com.polaris.papiclientsdk.common.utils.SignUtils.getAuthorizationByHMACSHA256;
+import static com.polaris.papiclientsdk.common.utils.SignUtils.*;
 
 /**
  * @author polaris
  * @create 2024-04-02 11:07
- * @version 1.0
+ * @version 2.0
  * ClassName AbstractClient
  * Package com.polaris.papiclientsdk.common.utils
  * Description
@@ -67,7 +65,7 @@ public abstract class AbstractClient {
         Map<String, Object> customizedParams = request.getCustomizedParams();
 
         if (!customizedParams.isEmpty() || signMethod.equals(SIGN_SHA1)) {
-            okRsp = doRequestWithTC3(request, actionName);
+            okRsp = doRequestV3(request, actionName);
         }
         else {
             throw new PapiClientSDKException(
@@ -82,53 +80,36 @@ public abstract class AbstractClient {
     }
 
 
-    private <T extends CommonResponse> T doRequestWithTC3(AbstractRequest<T> request, String actionName)
+    private <T extends CommonResponse> T doRequestV3(AbstractRequest<T> request, String actionName)
             throws PapiClientSDKException{
         String endpoint = httpProfile.getEndpoint();
-        String httpRequestMethod = request.getMethod();
-        if (httpRequestMethod == null) {
-            throw new PapiClientSDKException(
-                    "Request method should not be null, can only be GET or POST");
-        }
-        String canonicalHeaders;
+        String requestMethod = request.getMethod();
 
-        // Post 请求设置请求体、请求正文（请求参数）
-        String contentType= "application/json; charset=utf-8";
-        byte[] requestPayload = "".getBytes(StandardCharsets.UTF_8);
-        if (httpRequestMethod.equals(RequestMethodEnum.POST.getMethod())) {
-            requestPayload = AbstractRequest.toJsonString(request).getBytes(StandardCharsets.UTF_8);//http总是设置charset，即使我们没有指定它，为了确保签名正确，我们也需要在这里设置它
-            canonicalHeaders = "content-type:" + contentType + "\nhost:" + endpoint + "\n";
-        }else {
-            canonicalHeaders = "host:" + endpoint + "\n";
-        }
-        String canonicalUri = "/";
-        // get请求的查询参数
-        HashMap<String, String> params = new HashMap<>();
-        request.toMap(params, "");
-        // 构造规范请求
-        String canonicalQueryString = this.getCanonicalQueryString(params, httpRequestMethod);// 规范的请求参数
-        String signedHeaders = "content-type;host";// 签名请求头
-        String hashedRequestPayload = "";
-        if (request.getIsUnsignedPayload()) {
-            hashedRequestPayload = SignUtils.sha256Hex("UNSIGNED-PAYLOAD".getBytes(StandardCharsets.UTF_8));
-        } else {
-            hashedRequestPayload = SignUtils.sha256Hex(requestPayload);
-        }
-        String canonicalRequest =
-                httpRequestMethod
-                        + "\n"
-                        + canonicalUri
-                        + "\n"
-                        + canonicalQueryString
-                        + "\n"
-                        + canonicalHeaders
-                        + "\n"
-                        + signedHeaders
-                        + "\n"
-                        + hashedRequestPayload;
         // 获取系统当前时间
         String timestamp = String.valueOf(System.currentTimeMillis() / 1000);//当前时间的秒数
         String service = "papi";// 现在暂时没有二级域名，二级域名用来表示服务类型 endpoint.split("\\.")[0]
+
+        // Post请求的请求体设置
+        String contentType;
+        byte[] requestPayload = "".getBytes(StandardCharsets.UTF_8);
+        if (Objects.equals(requestMethod, RequestMethodEnum.POST.name())) {
+            contentType= "application/json; charset=utf-8";
+            requestPayload = AbstractRequest.toJsonString(request).getBytes(StandardCharsets.UTF_8);//http总是设置charset，即使我们没有指定它，为了确保签名正确，我们也需要在这里设置它
+        }else if(Objects.equals(requestMethod, RequestMethodEnum.GET.name())){
+            contentType= "-";
+        }else {
+            throw new PapiClientSDKException("Request method should be GET or POST");
+        }
+
+        // 获取查询参数
+        HashMap<String, String> params = new HashMap<>();
+        request.toMap(params, "");
+
+        // 构造规范请求
+        String canonicalQueryString = getCanonicalQueryString(params, requestMethod);// 规范的请求参数
+        Map<String, String> canonicalHeaderMap = getCanonicalHeader(requestMethod, timestamp, contentType);// 规范的请求头
+        Map<String, String> canonicalRequestMap = getCanonicalRequest(request, canonicalHeaderMap);
+        String canonicalRequest = canonicalRequestMap.get("canonicalRequest");
 
         // 构造 认证信息
         boolean skipSign = request.getSkipSign();
@@ -136,11 +117,13 @@ public abstract class AbstractClient {
         if (skipSign) {
             authorization = "SKIP";
         } else {
-            authorization = getAuthorizationByHMACSHA256(service, timestamp, credential, canonicalRequest, signedHeaders);
+            authorization = getAuthorization(service, timestamp, credential, canonicalRequest,canonicalHeaderMap.get("canonicalHeaders"));
         }
 
+
         // 构造请求头
-        HashMap<String, String> header = getHeader(request, actionName, contentType, authorization, timestamp);
+        String hashedRequestPayload = canonicalRequestMap.get("hashedRequestPayload");
+        HashMap<String, String> header = getHeader(request, actionName, contentType, authorization, timestamp,hashedRequestPayload);
 
         // 构造请求地址
         String protocol = httpProfile.getProtocol();
@@ -152,7 +135,7 @@ public abstract class AbstractClient {
 
         // 构造Get或Post请求
         HttpRequest httpRequest;
-        switch (httpRequestMethod) {
+        switch (requestMethod) {
             case "GET": {
                 httpRequest = HttpRequest.get(url + "?" + canonicalQueryString);
                 break;
@@ -184,10 +167,80 @@ public abstract class AbstractClient {
         } catch (Exception e) {
             throw new PapiClientSDKException(e.getMessage(),ErrorCode.OPERATION_ERROR );
         }
-
     }
 
-    private <T extends CommonResponse> HashMap<String, String> getHeader (AbstractRequest<T> request, String actionName, String contentType, String authorization, String timestamp){
+    /**
+     * @Description 获取规范的请求
+     * 客户端与云服务API网关使用相同的请求规范，可以确保同一个HTTP请求的前后端得到相同的签名结果，从而完成身份校验。
+     * CanonicalRequest =
+     *   HTTPRequestMethod + '\n' +    // ·1 http方法名，全大写
+     *   CanonicalURI + '\n' +         // ·2 规范化URI
+     *      即URL的资源路径部分经过编码得到，资源路径部分指URL中host与查询字符串之间的部分，包含host之后的/但不包含查询字符串前的?。用户发起请求时的URI应使用规范化URI，编码方式使用UTF-8字符集按照RFC3986的规则对URI中的每一部分（即被/分割开的字符串）进行编码
+     *   CanonicalQueryString + '\n' + // ·3 规范化查询字符串
+     *   CanonicalHeaders + '\n' +     // ·4 规范化消息头
+     *      请求中出现的以x-papi-为前缀的参与签名的请求头信息
+     *   SignedHeaders + '\n' +        // ·5已签名消息头
+     *      用于说明此次请求有哪些消息头参与了签名，与CanonicalHeaders中包含的消息头是一一对应的
+     *   HashedRequestPayload          // ·6 摘要编码后请求正文
+     * @author polaris
+     * @create 2024/4/8
+     * @return {@link String}
+     */
+    private <T extends CommonResponse>  Map<String,String> getCanonicalRequest (AbstractRequest<T> request,Map<String, String> canonicalHeaderMap) throws PapiClientSDKException{
+        String canonicalHeaders;
+        String signedHeaders;
+        String requestMethod = request.getMethod();//1
+        String canonicalURI = request.getPath();//2
+        // Post 请求设置请求体、请求正文（请求参数）
+        byte[] requestPayload = "".getBytes(StandardCharsets.UTF_8);
+        if (requestMethod.equals(RequestMethodEnum.POST.getMethod())) {
+            requestPayload = AbstractRequest.toJsonString(request).getBytes(StandardCharsets.UTF_8);//http总是设置charset，即使我们没有指定它，为了确保签名正确，我们也需要在这里设置它
+        }
+
+        canonicalHeaders = canonicalHeaderMap.get("canonicalHeaders");
+        signedHeaders = canonicalHeaderMap.get("signedHeaders");
+        // get请求的查询参数
+        HashMap<String, String> params = new HashMap<>();
+        request.toMap(params, "");
+        // 构造规范请求
+        String canonicalQueryString = getCanonicalQueryString(params, requestMethod);//3 规范的请求参数
+
+        String hashedRequestPayload = "";
+        if (request.getIsUnsignedPayload()) {
+            hashedRequestPayload = SignUtils.sha256Hex("UNSIGNED-PAYLOAD".getBytes(StandardCharsets.UTF_8));
+        } else {
+            hashedRequestPayload = SignUtils.sha256Hex(requestPayload);
+        }
+        String canonicalRequest=
+                requestMethod              // http方法名，全大写
+                + "\n"
+                + canonicalURI             // 规范化查询字符串
+                + "\n"
+                + canonicalQueryString     // 规范化URI
+                + "\n"
+                + canonicalHeaders         // 规范化消息头
+                + "\n"
+                + signedHeaders            // 已签名消息头
+                + "\n"
+                + hashedRequestPayload;    // 编码后请求正文
+        HashMap<String, String> canonicalRequestMap = new HashMap<>();
+        canonicalRequestMap.put("canonicalRequest", canonicalRequest);
+        canonicalRequestMap.put("canonicalURI", canonicalURI);
+        canonicalRequestMap.put("canonicalQueryString", canonicalQueryString);
+        canonicalRequestMap.put("canonicalHeaders", canonicalHeaders);
+        canonicalRequestMap.put("signedHeaders", signedHeaders);
+        canonicalRequestMap.put("hashedRequestPayload", hashedRequestPayload);
+        return canonicalRequestMap;
+    }
+
+    /**
+     * @Description
+     * 获取消息头
+     * @author polaris
+     * @create 2024/4/8
+     * @return {@link HashMap<String,String>}
+     */
+    private <T extends CommonResponse> HashMap<String, String> getHeader (AbstractRequest<T> request, String actionName, String contentType, String authorization, String timestamp, String hashedRequestPayload){
         // 添加请求头
         HashMap<String, String> header = new HashMap<>();
         String requestMethod = request.getMethod();
@@ -195,11 +248,17 @@ public abstract class AbstractClient {
         header.put("Host", httpProfile.getEndpoint());
         header.put("Authorization", authorization);
         header.put("Action", actionName);
+        //todo 集成redis后添加 随机数 token
+        header.put("nonce", RandomUtil.randomNumbers(14));
+        header.put("AccessKey",credential.getAccessKey());
         header.put("Timestamp", timestamp);
-        header.put("Version", apiVersion);
-        header.put("RequestClient", sdkVersion);
+        header.put("ApiVersion", apiVersion);
+        header.put("SdkVersion", sdkVersion);
+        // host 请求体随后添加
         if (request.getIsUnsignedPayload()) {
             header.put("Content-SHA256", "UNSIGNED-PAYLOAD");
+        } else {
+            header.put("Content-SHA256", hashedRequestPayload);
         }
         if (null != request.getHeader()) {
             header.putAll(request.getHeader());
@@ -207,6 +266,36 @@ public abstract class AbstractClient {
         return header;
     }
 
+    /**
+     * @Description 获取规范的请求头
+     * @author polaris
+     * @create 2024/4/8
+     * @return {@link Map< String, String>}
+     */
+    private Map<String,String> getCanonicalHeader(String method,String timestamp,String contentType){
+        String canonicalHeaders;
+        String signedHeaders;
+        String endpoint = this.httpProfile.getEndpoint();
+        if (method.equals(RequestMethodEnum.POST.getMethod())) {
+            // 规范化请求头
+            canonicalHeaders = "content-type:" + contentType + "\nhost:" + endpoint + "\ntimestamp" + timestamp;
+            signedHeaders = "content-type;host;timestamp";
+        }else {
+            canonicalHeaders = "host:" + endpoint;
+            signedHeaders = "host;timestamp";
+        }
+        HashMap<String, String> map = new HashMap<>();
+        map.put("canonicalHeaders", canonicalHeaders);
+        map.put("signedHeaders", signedHeaders);
+        return map;
+    }
+
+    /**
+     * @Description 尝试将响应体解析为map
+     * @author polaris
+     * @create 2024/4/8
+     * @return {@link Map< String, Object>}
+     */
     private Map<String, Object> parseJson(Map<String, Object> data,String body){
         try {
             data = new Gson().fromJson(body, new TypeToken<Map<String, Object>>() {
@@ -219,7 +308,13 @@ public abstract class AbstractClient {
         }
     }
 
-    private String getCanonicalQueryString(HashMap<String, String> params, String method)
+    /**
+     * @Description 获取规范查询参数
+     * @author polaris
+     * @create 2024/4/8
+     * @return {@link String}
+     */
+    private static String getCanonicalQueryString (HashMap<String, String> params, String method)
             throws PapiClientSDKException {
         if (method != null && method.equals(RequestMethodEnum.POST.getMethod())) {
             return "";

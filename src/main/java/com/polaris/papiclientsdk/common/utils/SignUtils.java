@@ -33,29 +33,35 @@ public class SignUtils {
      */
     public static final String SIGN_SHA1 = "HmacSHA1";
 
-    /**
-     * Signature process version 1, with HmacSHA256.
-     */
-    public static final String SIGN_SHA256 = "HmacSHA256";
 
     /**
-     * Signature process version 3.
+     * @Description
+     * 获取签名认证信息
+     * ·1 待签名字符串 stringToSign
+     *          签名算法 + \n + 哈希摘要后的规范请求
+     * ·2 用户密钥
+     * ·3 时间
+     * @author polaris
+     * @create 2024/4/8
+     * @return {@link String}
      */
-    public static final String SIGN_TC3_256 = "TC3-HMAC-SHA256";
-    public static String getAuthorizationByHMACSHA256(String service, String timestamp, Credential credential,String canonicalRequest,String signedHeaders) throws PapiClientSDKException{
-        String secretId = credential.getAccessKey();
+
+
+    public static String getAuthorization(String service, String timestamp, Credential credential,String canonicalRequest,String signedHeader) throws PapiClientSDKException{
+        String accessKey = credential.getAccessKey();
         String secretKey = credential.getSecretKey();
 
         // 当前系统时间格式化
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        String date = sdf.format(new Date(Long.parseLong(timestamp + "000")));// 2024-4-7 数据库中是精确到秒，统一
+        String date = sdf.format(new Date(Long.parseLong(timestamp + "000")));// 2018-01-01T12:00:00Z 数据库中是精确到秒，统一
 
         String credentialScope = date + "/" + service + "/" + "v3_request";
         String hashedCanonicalRequest =
                 SignUtils.sha256Hex(canonicalRequest.getBytes(StandardCharsets.UTF_8));
+        // 待签名字符串
         String stringToSign =
-                "papi3-HMAC-SHA256\n" + timestamp + "\n" + credentialScope + "\n" + hashedCanonicalRequest;
+                "papi3-HMAC-SHA256\n" + timestamp + "\n" + hashedCanonicalRequest;
 
         byte[] secretDate = hmac256(("Papi3" + secretKey).getBytes(StandardCharsets.UTF_8), date);
         byte[] secretService = hmac256(secretDate, service);
@@ -63,15 +69,13 @@ public class SignUtils {
         String signature =
                 DatatypeConverter.printHexBinary(SignUtils.hmac256(secretSigning, stringToSign)).toLowerCase();
         return
-                "papi3-HMAC-SHA256 "
+                "papi-HMAC-SHA256 "
                         + "Credential="
-                        + secretId
-                        + "/"
-                        + credentialScope
-                        + ", "
+                        + accessKey
+                        + ","
                         + "SignedHeaders="
-                        + signedHeaders
-                        + ", "
+                        + signedHeader
+                        + ","
                         + "Signature="
                         + signature;
     }
