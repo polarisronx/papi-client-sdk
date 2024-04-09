@@ -19,24 +19,34 @@ public class PapiClientSDKException extends Exception {
     /**
      * Error code, When API returns a failure, it must have an error code.
      */
-    private String errorCode;
+    private int errorCode;
 
     public PapiClientSDKException (String message, Throwable cause) {
         super(message, cause);
     }
 
-    public PapiClientSDKException (String message) {
-        this(message, "");
+
+    public PapiClientSDKException(int code, String message) {
+        super(message);
+        this.errorCode = code;
     }
 
-    public PapiClientSDKException (String message, String requestId) {
-        this(message, requestId, "");
+    public PapiClientSDKException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode.getCode();
     }
 
-    public PapiClientSDKException (String message, String requestId, String errorCode) {
+    public PapiClientSDKException(ErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode.getCode();
+    }
+
+
+
+    public PapiClientSDKException (String message, String requestId, ErrorCode errorCode) {
         super(message);
         this.requestId = requestId;
-        this.errorCode = errorCode;
+        this.errorCode = errorCode.getCode();
     }
     public PapiClientSDKException (String message, ErrorCode errorCode) {
         super(message);
@@ -52,12 +62,12 @@ public class PapiClientSDKException extends Exception {
      *
      * @return A string represents error code
      */
-    public String getErrorCode() {
+    public int getErrorCode() {
         return errorCode;
     }
 
     public String toString() {
-        String msg = "[TencentCloudSDKException]"
+        String msg = "[PapiClientSDKException]"
                 + "code: "
                 + this.getErrorCode()
                 + " message:"

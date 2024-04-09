@@ -10,13 +10,15 @@ import lombok.Getter;
  * Package com.polaris.papiclientsdk.common.enums
  * Description 暂不支持除get和post以外的请求方式
  */
-@Getter
+
 public enum RequestMethodEnum {
     GET("GET"),
     POST("POST");
-
+    private final String method;
     RequestMethodEnum(String method){
         this.method=method;
     }
-    private final String method;
+    public String getMethod(){
+        return method;
+    }
 }

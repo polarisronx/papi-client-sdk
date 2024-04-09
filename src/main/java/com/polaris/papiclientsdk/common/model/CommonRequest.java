@@ -3,6 +3,7 @@ package com.polaris.papiclientsdk.common.model;
 import lombok.Data;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @Author polaris
@@ -16,6 +17,11 @@ import java.util.HashMap;
 public class CommonRequest extends AbstractRequest<CommonResponse>{
     private String method;
     private String path;
+
+    @Override
+    public void setCustomField (Map<String, Object> params){
+
+    }
 
     @Override
     public String getMethod (){

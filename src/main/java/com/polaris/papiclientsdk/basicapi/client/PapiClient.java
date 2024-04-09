@@ -3,10 +3,10 @@ package com.polaris.papiclientsdk.basicapi.client;
 import com.polaris.papiclientsdk.basicapi.model.request.GetNameByPost1Request;
 import com.polaris.papiclientsdk.basicapi.model.request.GetNameByPost2Request;
 import com.polaris.papiclientsdk.basicapi.model.response.GetNameByPostResponse;
-import com.polaris.papiclientsdk.common.execption.ErrorCode;
 import com.polaris.papiclientsdk.common.execption.PapiClientSDKException;
 import com.polaris.papiclientsdk.common.model.AbstractClient;
 import com.polaris.papiclientsdk.common.model.AbstractRequest;
+import com.polaris.papiclientsdk.common.model.CommonRequest;
 import com.polaris.papiclientsdk.common.model.Credential;
 import com.polaris.papiclientsdk.common.profile.HttpProfile;
 import lombok.extern.slf4j.Slf4j;
@@ -24,30 +24,36 @@ import java.util.HashMap;
  */
 @Slf4j
 public class PapiClient extends AbstractClient {
-    private String sdkVersion = "0.0.2-2024-04";
-    private String gatewayHost = "http://localhost:8090";
-    private static final HashMap<String, AbstractRequest> request = new HashMap<>();
+    public static final String SDK_VERSION = "2.0.0-2024-04";
+    public static final String GATEWAY_HOST = "localhost:8090";
+
+    private  static final HashMap<String, AbstractRequest> requestReady = new HashMap<>();
 
     static {
-        request.put("GetNameByPost2", new GetNameByPost2Request());
-        request.put("GetNameByPost1", new GetNameByPost1Request());
+        requestReady.put("GetNameByPost2", new GetNameByPost2Request());
+        requestReady.put("GetNameByPost1", new GetNameByPost1Request());
     }
     public PapiClient (Credential credential, HttpProfile httpProfile){
-        super(credential, httpProfile);
+        super();
+        this.setCredential(credential);
+        this.setHttpProfile(httpProfile);
+        this.setSdkVersion(SDK_VERSION);
+        this.setGatewayHost(GATEWAY_HOST) ;
     }
 
-    @Override
-    public AbstractRequest getRequest (String action) throws PapiClientSDKException{
-        for (String key : request.keySet()){
-            if (key.equals(action)) {
-                return request.get(key);
-            }
-        }
-        throw new PapiClientSDKException("没有这种Request类型", ErrorCode.PARAMS_ERROR);
+
+    public GetNameByPost1Request getNameByPost1Request(){
+        return new GetNameByPost1Request();
+    }
+    public GetNameByPost2Request getNameByPost2Request(){
+        return new GetNameByPost2Request();
     }
 
     public GetNameByPostResponse getNameByGet(GetNameByPost2Request request) throws PapiClientSDKException{
         return call(request, "getNameByGet");
+    }
+    public GetNameByPostResponse getNameByGet(String method,String path,HashMap<String,Object> map) throws PapiClientSDKException{
+        return call(new GetNameByPost1Request(), "getNameByGet");
     }
 
     public GetNameByPostResponse getNameByPost1(GetNameByPost2Request request) throws PapiClientSDKException{
@@ -56,6 +62,11 @@ public class PapiClient extends AbstractClient {
 
     public GetNameByPostResponse getNameByPost2(GetNameByPost2Request request) throws PapiClientSDKException{
         return call(request, "getNameByPost2");
+    }
+    public GetNameByPostResponse getNameByPost2(CommonRequest commonRequest) throws PapiClientSDKException{
+        GetNameByPost2Request getNameByPost2Request = new GetNameByPost2Request(commonRequest.getMethod(),commonRequest.getPath(),commonRequest.getCustomizedParams());
+        getNameByPost2Request.setCustomField(commonRequest.getCustomizedParams());
+        return call(getNameByPost2Request, "getNameByPost2");
     }
 
 }

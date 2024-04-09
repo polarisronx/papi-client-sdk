@@ -1,17 +1,14 @@
 package com.polaris.papiclientsdk.common.model;
 
-import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
 import com.polaris.papiclientsdk.common.enums.RequestMethodEnum;
 import lombok.Data;
 
 import java.lang.reflect.Field;
-import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,14 +23,20 @@ import java.util.Map;
 @Data
 public abstract class AbstractRequest<T extends CommonResponse> {
     public Map<String,String> header = new HashMap<>();
-    private HashMap<String, Object> customizedParams = new HashMap<>();
+    public Map<String, Object> customizedParams = new HashMap<>();
     private boolean skipSign = false;
     private boolean isUnsignedPayload;
-    private String method; // 全大写
+    public String method; // 全大写
+    public String path;
+
 
     public static <O extends AbstractRequest> String toJsonString (O obj){
         return toJsonObject(obj).toString();
     }
+
+
+    public abstract void setCustomField (Map<String,Object> params);
+
     private static <O extends AbstractRequest> JsonObject toJsonObject(O obj) {
         Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
         JsonObject joall = new JsonObject();

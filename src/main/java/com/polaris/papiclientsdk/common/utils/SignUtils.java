@@ -2,6 +2,7 @@ package com.polaris.papiclientsdk.common.utils;
 
 import cn.hutool.crypto.digest.DigestAlgorithm;
 import cn.hutool.crypto.digest.Digester;
+import com.polaris.papiclientsdk.common.execption.ErrorCode;
 import com.polaris.papiclientsdk.common.execption.PapiClientSDKException;
 import com.polaris.papiclientsdk.common.model.Credential;
 
@@ -56,7 +57,6 @@ public class SignUtils {
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String date = sdf.format(new Date(Long.parseLong(timestamp + "000")));// 2018-01-01T12:00:00Z 数据库中是精确到秒，统一
 
-        String credentialScope = date + "/" + service + "/" + "v3_request";
         String hashedCanonicalRequest =
                 SignUtils.sha256Hex(canonicalRequest.getBytes(StandardCharsets.UTF_8));
         // 待签名字符串
@@ -85,7 +85,7 @@ public class SignUtils {
         try {
             md = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new PapiClientSDKException("SHA-256 is not supported." + e.getMessage());
+            throw new PapiClientSDKException("SHA-256 is not supported." + e.getMessage(), ErrorCode.NO_SUPPORT_ERROR);
         }
         byte[] d = md.digest(s.getBytes(UTF8));
         return DatatypeConverter.printHexBinary(d).toLowerCase();
@@ -96,7 +96,7 @@ public class SignUtils {
         try {
             md = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new PapiClientSDKException("SHA-256 is not supported." + e.getMessage());
+            throw new PapiClientSDKException("SHA-256 is not supported." + e.getMessage(), ErrorCode.NO_SUPPORT_ERROR);
         }
         byte[] d = md.digest(b);
         return DatatypeConverter.printHexBinary(d).toLowerCase();
@@ -107,13 +107,13 @@ public class SignUtils {
         try {
             mac = Mac.getInstance("HmacSHA256");
         } catch (NoSuchAlgorithmException e) {
-            throw new PapiClientSDKException("HmacSHA256 is not supported." + e.getMessage());
+            throw new PapiClientSDKException("HmacSHA256 is not supported." + e.getMessage(), ErrorCode.NO_SUPPORT_ERROR);
         }
         SecretKeySpec secretKeySpec = new SecretKeySpec(key, mac.getAlgorithm());
         try {
             mac.init(secretKeySpec);
         } catch (InvalidKeyException e) {
-            throw new PapiClientSDKException(e.getClass().getName() + "-" + e.getMessage());
+            throw new PapiClientSDKException(e.getClass().getName() + "-" + e.getMessage(), ErrorCode.NO_SUPPORT_ERROR);
         }
         return mac.doFinal(msg.getBytes(UTF8));
     }

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @Author polaris
@@ -20,6 +21,15 @@ import java.util.HashMap;
 @Data
 public class GetNameByPost1Request extends AbstractRequest<GetNameByPostResponse> {
     private String username;
+
+    @Override
+    public void setCustomField (Map<String, Object> params){
+        for (Map.Entry<String, Object> entry : params.entrySet()){
+            if (entry.getKey().equals("username")){
+                this.username=(String)entry.getValue();
+            }
+        }
+    }
 
     @Override
     public String getMethod (){

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @Author polaris
@@ -21,14 +22,31 @@ import java.util.HashMap;
 public class GetNameByPost2Request extends AbstractRequest<GetNameByPostResponse> {
     private String username;
 
+    public GetNameByPost2Request(){
+
+    }
+    public GetNameByPost2Request(String method,String path, Map<String, Object> params){
+        this.path=path;
+        this.method=method;
+        this.customizedParams=params;
+
+    }
     @Override
     public String getMethod (){
-        return RequestMethodEnum.GET.getMethod();
+        return RequestMethodEnum.POST.getMethod();
+    }
+
+    public void setCustomField (Map<String,Object> params){
+        for (Map.Entry<String, Object> entry : params.entrySet()){
+            if (entry.getKey().equals("username")){
+                this.username=(String)entry.getValue();
+            }
+        }
     }
 
     @Override
     public String getPath (){
-        return "/name/a";
+        return "/api/name/c";
     }
 
     @Override
@@ -38,6 +56,6 @@ public class GetNameByPost2Request extends AbstractRequest<GetNameByPostResponse
 
     @Override
     public void toMap (HashMap<String, String> params, String prefix){
-        this.setParamSimple(params, prefix + "AccountType", this.username);
+        this.setParamSimple(params, prefix + "username", this.username);
     }
 }

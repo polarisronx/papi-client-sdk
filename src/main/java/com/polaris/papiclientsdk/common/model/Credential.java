@@ -16,5 +16,7 @@ public class Credential {
     private String secretKey;
 
     public Credential (String accessKey, String secretKey){
+        this.accessKey=accessKey;
+        this.secretKey=secretKey;
     }
 }

@@ -33,5 +33,8 @@ public class CommonResponse implements Serializable {
     public void setData(Map<String, Object> data) {
         this.data = data;
     }
+    public void setCustomData(Map<String,Object> data){
+
+    }
 
 }
