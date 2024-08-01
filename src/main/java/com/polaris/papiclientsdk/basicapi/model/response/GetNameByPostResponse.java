@@ -7,9 +7,9 @@ import lombok.EqualsAndHashCode;
 import java.util.Map;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 11:01
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 11:01
+ * @version 1.0
  * ClassName getUsernameResponse
  * Package com.polaris.papiclientsdk.basicapi.model.response
  * Description

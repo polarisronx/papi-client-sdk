@@ -1,11 +1,11 @@
 package com.polaris.papiclientsdk.common.execption;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 11:10
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 11:10
+ * @version 1.0
  * ClassName papiClientSDKExecption
- * Package com.polaris.papiclientsdk.common.execption
+ * Package com.polaris.papiclientsdk.utils.execption
  * Description
  */
 public class PapiClientSDKException extends Exception {

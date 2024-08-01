@@ -9,6 +9,7 @@ import com.polaris.papiclientsdk.common.model.Credential;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
+
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -19,9 +20,9 @@ import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
 /**
- * @Author polaris
- * @Create 2024-03-13 14:31
- * @Version 1.0
+ * @author polaris
+ * @data 2024-03-13 14:31
+ * @version 1.0
  * ClassName SignUtils
  * Package com.polaris.apiinterface.utils
  * Description 生成签名
@@ -43,7 +44,7 @@ public class SignUtils {
      * ·2 用户密钥
      * ·3 时间
      * @author polaris
-     * @create 2024/4/8
+     * @date 2024/4/8
      * @return {@link String}
      */
 

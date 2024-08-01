@@ -8,11 +8,36 @@
         <version>2.7.13</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.polaris</groupId>
+    <groupId>io.github.polarisronx</groupId>
     <artifactId>papi-client-sdk</artifactId>
-    <version>2.0.0</version>
+    <version>1.0.3</version>
     <name>papi-client-sdk</name>
     <description>papi-client-sdk</description>
+    <url>https://github.com/polarisronx/papi-client-sdk.git</url>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>polaris</name>
+            <email>polarisronx@163.com</email>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:git://github.com/polarisronx/papi-client-sdk.git</connection>
+        <developerConnection>scm:git:ssh://github.com:polarisronx/papi-client-sdk.git</developerConnection>
+        <url>http://github.com/polarisronx/papi-client-sdk/tree/master</url>
+    </scm>
+    <distributionManagement>
+        <repository>
+            <id>central</id>
+            <name>central-releases</name>
+            <url>https://s01.oss.sonatype.org/</url>
+        </repository>
+    </distributionManagement>
     <properties>
         <java.version>8</java.version>
     </properties>
@@ -32,6 +57,10 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
@@ -39,15 +68,92 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.8.9</version>
+            <version>2.9.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>2.15.4</version>
         </dependency>
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!--   central发布插件    -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.4.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <tokenAuth>true</tokenAuth>
+                </configuration>
+            </plugin>
+            <!--   source源码插件   官方要求 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--   javadoc插件  官方要求  -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <!-- jdk1.8要加上，1.7要去掉，否则会报错 -->
+                    <additionalJOptions>
+                        <additionalJOption>-Xdoclint:none</additionalJOption>
+                    </additionalJOptions>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <configuration>
+                    <!--   没有配置环境变量，可知道GnuPG路径 -->
+                    <executable>D:\program files\GnuPG\bin\gpg.exe</executable>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
 
 
 </project>

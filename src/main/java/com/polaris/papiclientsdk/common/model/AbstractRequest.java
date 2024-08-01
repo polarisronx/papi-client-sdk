@@ -7,23 +7,26 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.polaris.papiclientsdk.common.enums.RequestMethodEnum;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 11:07
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 11:07
+ * @version 1.0
  * ClassName AbstactModel
- * Package com.polaris.papiclientsdk.common.utils
+ * Package com.polaris.papiclientsdk.utils.utils
  * Description
  */
 @Data
 public abstract class AbstractRequest<T extends CommonResponse> {
     public Map<String,String> header = new HashMap<>();
     public Map<String, Object> customizedParams = new HashMap<>();
+    public Map<String,MultipartFile> files = new HashMap<>();
+    public String info;// 用于必要时传递一些参数
     private boolean skipSign = false;
     private boolean isUnsignedPayload;
     public String method; // 全大写
@@ -94,7 +97,7 @@ public abstract class AbstractRequest<T extends CommonResponse> {
     protected <V> void setParamSimple(HashMap<String, String> map, String key, V value) {
         if (value != null) {
 
-            key = key.substring(0, 1).toUpperCase() + key.substring(1);
+//            key = key.substring(0, 1).toUpperCase() + key.substring(1);
             key = key.replace("_", ".");
             map.put(key, String.valueOf(value));
         }
@@ -105,14 +108,24 @@ public abstract class AbstractRequest<T extends CommonResponse> {
     public boolean getSkipSign (){
         return  this.skipSign;
     }
-    /*
-     *   设置请求参数
-     *
+
+    /**
+     * @Description 用于标记哪些参数是multipart类型，需要转为二进制类型参数
+     * @author polaris
+     * @create 2024/6/18
+     * @return {@link String[]}
      */
-//    public void setRequestParams(O params) {
-//
-//        this.customizedParams = new Gson().fromJson(JSONUtil.toJsonStr(params), new TypeToken<Map<String, Object>>() {
-//        }.getType());
-//    }
+
+    public String[] getBinaryParams (){
+        return new String[0];
+    }
+
+    /**
+     * 当存在时设置multipart请求对象.
+     */
+    public HashMap<String, byte[]> getMultipartRequestParams() {
+        return new HashMap<String, byte[]>();
+    }
+
 
 }

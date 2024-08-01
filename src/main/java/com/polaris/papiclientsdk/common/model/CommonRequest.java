@@ -6,11 +6,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 14:24
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 14:24
+ * @version 1.0
  * ClassName CommonRequest
- * Package com.polaris.papiclientsdk.common.model
+ * Package com.polaris.papiclientsdk.utils.model
  * Description
  */
 @Data

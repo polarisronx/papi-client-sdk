@@ -3,11 +3,11 @@ package com.polaris.papiclientsdk.common.profile;
 import lombok.Data;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 11:36
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 11:36
+ * @version 1.0
  * ClassName HttpProfile
- * Package com.polaris.papiclientsdk.common.profile
+ * Package com.polaris.papiclientsdk.utils.profile
  * Description
  */
 @Data
@@ -24,6 +24,14 @@ public class HttpProfile {
         this.endpoint=endpoint;
         this.path=path;
         this.method=method;
+    }
+    public HttpProfile (String endpoint, String path, String method,String protocol,String contentType,String charset){
+        this.endpoint=endpoint;
+        this.path=path;
+        this.method=method;
+        this.protocol=protocol;
+        this.contentType=contentType;
+        this.charset=charset;
     }
 // todo 暂不支持代理   private String userAgent;
 

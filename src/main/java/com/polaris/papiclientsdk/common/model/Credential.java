@@ -3,11 +3,11 @@ package com.polaris.papiclientsdk.common.model;
 import lombok.Data;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 11:38
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 11:38
+ * @version 1.0
  * ClassName Credential
- * Package com.polaris.papiclientsdk.common
+ * Package com.polaris.papiclientsdk.utils
  * Description 用户登录凭证信息
  */
 @Data

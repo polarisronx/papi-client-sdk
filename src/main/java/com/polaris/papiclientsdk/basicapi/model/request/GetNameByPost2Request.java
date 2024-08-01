@@ -10,9 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @Author polaris
- * @Create 2024-04-02 11:01
- * @Version 1.0
+ * @author polaris
+ * @data 2024-04-02 11:01
+ * @version 1.0
  * ClassName GetUsernameRequest
  * Package com.polaris.papiclientsdk.basicapi.model.request
  * Description
@@ -46,7 +46,7 @@ public class GetNameByPost2Request extends AbstractRequest<GetNameByPostResponse
 
     @Override
     public String getPath (){
-        return "/api/name/c";
+        return "/api/v1/name/c";
     }
 
     @Override

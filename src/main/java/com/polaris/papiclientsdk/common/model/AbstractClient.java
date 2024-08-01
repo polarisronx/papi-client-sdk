@@ -1,6 +1,10 @@
 package com.polaris.papiclientsdk.common.model;
 
+import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.io.resource.Resource;
+import cn.hutool.core.net.multipart.MultipartFormData;
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.http.ContentType;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 
@@ -12,26 +16,33 @@ import com.polaris.papiclientsdk.common.execption.ErrorCode;
 import com.polaris.papiclientsdk.common.execption.PapiClientSDKException;
 import com.polaris.papiclientsdk.common.profile.HttpProfile;
 import com.polaris.papiclientsdk.common.utils.SignUtils;
+import com.polaris.papiclientsdk.common.utils.http.HttpConnection;
+import kotlin.jvm.Throws;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static com.polaris.papiclientsdk.common.utils.SignUtils.*;
 
 /**
  * @author polaris
- * @create 2024-04-02 11:07
+ * @date 2024-04-02 11:07
  * @version 2.0
  * ClassName AbstractClient
- * Package com.polaris.papiclientsdk.common.utils
+ * Package com.polaris.papiclientsdk.utils.utils
  * Description
  */
 @Data
@@ -43,6 +54,7 @@ public abstract class AbstractClient {
     private String apiVersion;
     private HttpProfile httpProfile;
     private String gatewayHost;
+    private HttpConnection httpConnection;
 
     public AbstractClient (){
     }
@@ -58,12 +70,10 @@ public abstract class AbstractClient {
         }
     }
 
-    private <T extends CommonResponse> T callByHttp (AbstractRequest<T> request,String actionName) throws PapiClientSDKException{
-        T okRsp = null;
-        Map<String, Object> customizedParams = request.getCustomizedParams();
-
-        if (!customizedParams.isEmpty() || signMethod.equals(SIGN_SHA1)) {
-            okRsp = doRequestV3(request, actionName);
+    private <T extends CommonResponse> T callByHttp (AbstractRequest<T> request,String actionName) throws PapiClientSDKException, IOException{
+        T okRsp;
+        if (signMethod.equals(SIGN_SHA1)) {
+            okRsp = doRequest(request, actionName);
         }
         else {
             throw new PapiClientSDKException(
@@ -78,7 +88,7 @@ public abstract class AbstractClient {
     }
 
 
-    private <T extends CommonResponse> T doRequestV3(AbstractRequest<T> request, String actionName)
+    private <T extends CommonResponse> T doRequest (AbstractRequest<T> request, String actionName)
             throws PapiClientSDKException{
         String endpoint = httpProfile.getEndpoint();
         String requestMethod = request.getMethod();
@@ -88,12 +98,26 @@ public abstract class AbstractClient {
         String service = "papi";// 现在暂时没有二级域名，二级域名用来表示服务类型 endpoint.split("\\.")[0]
 
         // Post请求的请求体设置
-        String contentType;
+        String contentType = "application/x-www-form-urlencoded";// 默认的请求体数据类型
         byte[] requestPayload = "".getBytes(StandardCharsets.UTF_8);
-        if (Objects.equals(requestMethod, RequestMethodEnum.POST.name())) {
-            contentType= "application/json;charset=utf-8";
+
+
+
+        String[] binaryParams = request.getBinaryParams();
+
+
+        if (binaryParams.length > 0) {// 有二进制文件上传的请求
+            String boundary = UUID.randomUUID().toString();
+            contentType = "multipart/form-data; charset=utf-8" + "; boundary=" + boundary;
+            try {
+                requestPayload = getMultipartPayload(request, boundary);
+            } catch (Exception e) {
+                throw new PapiClientSDKException(ErrorCode.OPERATION_ERROR,"转换multipart失败");
+            }
+        } else if (Objects.equals(requestMethod, RequestMethodEnum.POST.name())) {
+            contentType = "application/json; charset=utf-8";
             requestPayload = AbstractRequest.toJsonString(request).getBytes(StandardCharsets.UTF_8);//http总是设置charset，即使我们没有指定它，为了确保签名正确，我们也需要在这里设置它
-        }else if(Objects.equals(requestMethod, RequestMethodEnum.GET.name())){
+        } else if(Objects.equals(requestMethod, RequestMethodEnum.GET.name())){
             contentType= "-";
         }else {
             throw new PapiClientSDKException("Request method should be GET or POST",ErrorCode.TYPE_ERROR);
@@ -104,8 +128,10 @@ public abstract class AbstractClient {
         request.toMap(params, "");
 
         // 构造规范请求
+        String clearContentType = contentType.split(";")==null?contentType:
+                contentType.split(";")[0];
         String canonicalQueryString = getCanonicalQueryString(params, requestMethod);// 规范的请求参数
-        Map<String, String> canonicalHeaderMap = getCanonicalHeader(requestMethod, timestamp, contentType,endpoint);// 规范的请求头
+        Map<String, String> canonicalHeaderMap = getCanonicalHeader(requestMethod, timestamp, clearContentType,endpoint);// 规范的请求头
         Map<String, String> canonicalRequestMap = getCanonicalRequest(request, canonicalHeaderMap);
         String canonicalRequest = canonicalRequestMap.get("canonicalRequest");
 
@@ -118,55 +144,100 @@ public abstract class AbstractClient {
             authorization = getAuthorization(service, timestamp, credential, canonicalRequest,canonicalHeaderMap.get("signedHeaders"));
         }
 
-
         // 构造请求头
         String hashedRequestPayload = canonicalRequestMap.get("hashedRequestPayload");
-        HashMap<String, String> header = getHeader(request, actionName, contentType, authorization, timestamp,hashedRequestPayload);
-
+        Headers.Builder headerBuilder = getHeader(request, actionName, contentType, authorization, timestamp,hashedRequestPayload);
         // 构造请求地址
         String protocol = httpProfile.getProtocol();
         String url = protocol +"://"+ endpoint + request.getPath();
         if (null != gatewayHost) {// 有网关打到网关
             url = protocol + "://"+ gatewayHost + request.getPath();
-            header.put("Host", gatewayHost);
+            headerBuilder.add("Host", gatewayHost);
         }
-
+        Headers header = headerBuilder.build();
         // 构造Get或Post请求
-        HttpRequest httpRequest;
-        switch (requestMethod) {
-            case "GET": {
-                httpRequest = HttpRequest.get(url + "?" + canonicalQueryString);
-                break;
-            }
-            case "POST": {
-                httpRequest = HttpRequest.post(url);
-                break;
-            }
-            default: {
-                throw new PapiClientSDKException("不支持该请求",ErrorCode.OPERATION_ERROR);
-            }
-        }
-        httpRequest = httpRequest.addHeaders(header).body(requestPayload);
+        Request httpRequest;
+        Response httpResponse;
 
-        // 处理请求响应信息
-        Map<String, Object> data = new HashMap<>();
-        try (HttpResponse httpResponse = httpRequest.execute()) {
+        final Map<String, Object>[] data = new Map[]{new HashMap<>()};
+        try{
             Class<T> responseClass = request.getResponseClass();
-            T response = responseClass.newInstance();
-            response.setCode(httpResponse.getStatus());
-            String body = httpResponse.body();
-            if (response.getCode()!=200){
-                data.put("errorMessage", "响应失败");
+            T NewResponse = responseClass.newInstance();
+            switch (requestMethod) {
+                case "GET": {
+                    if(canonicalQueryString.isEmpty())httpRequest = new Request.Builder().url(url).headers(header).get().build();
+                    else httpRequest = new Request.Builder().url(url + "?" + canonicalQueryString).headers(header).get().build();
+                    httpResponse = this.httpConnection.doRequest(httpRequest);
+                    break;
+                }
+                case "POST": {
+                    // 对于有文件的请求，用multipart/form-data格式
+                    if(!request.files.isEmpty()){
+                        MultipartBody body = new MultipartBody.Builder()
+                                .setType(MultipartBody.FORM)
+                                .addFormDataPart(actionName + "Request",AbstractRequest.toJsonString(request))
+                                .addFormDataPart(FileUtil.getSuffix(request.info), request.getInfo(), RequestBody.create(request.getMultipartRequestParams().get(request.getInfo())))
+                                .build();
+                        httpRequest = new Request.Builder().url(url).headers(header).post(body).build();
+                    }else {
+                        // 对于没有文件的请求，将参数放在请求体中，用application/json格式
+                        httpRequest = new Request.Builder().url(url).headers(header).post(RequestBody.create(requestPayload)).build();
+                    }
+                    httpResponse = this.httpConnection.doRequest(httpRequest);
+                    break;
+                }
+                default: {
+                    throw new PapiClientSDKException("不支持该请求",ErrorCode.OPERATION_ERROR);
+                }
             }
-            // 尝试通过JSON解析为map
-            data = parseJson(data,body);
-            response.setData(data);
-            response.setCustomData(data);
-            return response;
+            // 处理请求响应信息
+            if(httpResponse.code()!=CommonResponse.HTTP_RSP_OK) {
+                NewResponse.setCode(ErrorCode.OPERATION_ERROR.getCode());
+                data[0].put("errorMessage", "响应失败");
+                NewResponse.setData(data[0]);
+            }else {
+                NewResponse.setCode(ErrorCode.SUCCESS.getCode());
+                // 尝试通过JSON解析为map
+                ResponseBody body = httpResponse.body();
+                data[0] = body!=null?parseJson(data[0],body.string()):null;
+                NewResponse.setData(data[0]);
+                NewResponse.setCustomData(data[0]);
+            }
+            return NewResponse;
         } catch (Exception e) {
             log.info(e.getMessage());
             throw new PapiClientSDKException(e.getMessage(),ErrorCode.OPERATION_ERROR );
         }
+    }
+
+    private <T extends CommonResponse> byte[] getMultipartPayload (AbstractRequest<T> request, String boundary) throws IOException{
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        String[] binaryParams = request.getBinaryParams();
+        for (Map.Entry<String, byte[]> entry : request.getMultipartRequestParams().entrySet()) {
+            baos.write("--".getBytes(StandardCharsets.UTF_8));
+            baos.write(boundary.getBytes(StandardCharsets.UTF_8));
+            baos.write("\r\n".getBytes(StandardCharsets.UTF_8));
+            baos.write("Content-Disposition: form-data; name=\"".getBytes(StandardCharsets.UTF_8));
+            baos.write(entry.getKey().getBytes(StandardCharsets.UTF_8));
+            if (Arrays.asList(binaryParams).contains(entry.getKey())) {
+                baos.write("\"; filename=\"".getBytes(StandardCharsets.UTF_8));
+                baos.write(entry.getKey().getBytes(StandardCharsets.UTF_8));
+                baos.write("\"\r\n".getBytes(StandardCharsets.UTF_8));
+            } else {
+                baos.write("\"\r\n".getBytes(StandardCharsets.UTF_8));
+            }
+            baos.write("\r\n".getBytes(StandardCharsets.UTF_8));
+            baos.write(entry.getValue());
+            baos.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+        if (baos.size() != 0) {
+            baos.write("--".getBytes(StandardCharsets.UTF_8));
+            baos.write(boundary.getBytes(StandardCharsets.UTF_8));
+            baos.write("--\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+        byte[] bytes = baos.toByteArray();
+        baos.close();
+        return bytes;
     }
 
     /**
@@ -183,7 +254,7 @@ public abstract class AbstractClient {
      *      用于说明此次请求有哪些消息头参与了签名，与CanonicalHeaders中包含的消息头是一一对应的
      *   HashedRequestPayload          // ·6 摘要编码后请求正文
      * @author polaris
-     * @create 2024/4/8
+     * @date 2024/4/8
      * @return {@link String}
      */
     private static <T extends CommonResponse>  Map<String,String> getCanonicalRequest (AbstractRequest<T> request,Map<String, String> canonicalHeaderMap) throws PapiClientSDKException{
@@ -283,30 +354,30 @@ public abstract class AbstractClient {
      * @Description
      * 获取消息头
      * @author polaris
-     * @create 2024/4/8
+     * @date 2024/4/8
      * @return {@link HashMap<String,String>}
      */
-    private <T extends CommonResponse> HashMap<String, String> getHeader (AbstractRequest<T> request, String actionName, String contentType, String authorization, String timestamp, String hashedRequestPayload){
+    private <T extends CommonResponse> Headers.Builder getHeader (AbstractRequest<T> request, String actionName, String contentType, String authorization, String timestamp, String hashedRequestPayload){
         // 添加请求头
-        HashMap<String, String> header = new HashMap<>();
+        Headers.Builder header = new Headers.Builder();
         String requestMethod = request.getMethod();
-        if(requestMethod.equals(RequestMethodEnum.POST.getMethod())) header.put("Content-Type", contentType);
-        header.put("Authorization", authorization);
-        header.put("Action", actionName);
+        if(requestMethod.equals(RequestMethodEnum.POST.getMethod())) header.add("Content-Type", contentType);
+        header.add("Authorization", authorization);
+        header.add("Action", actionName);
         //todo 集成redis后添加 随机数 token
-        header.put("nonce", RandomUtil.randomNumbers(14));
-        header.put("AccessKey",credential.getAccessKey());
-        header.put("Timestamp", timestamp);
-        header.put("ApiVersion", apiVersion);
-        header.put("SdkVersion", sdkVersion);
+        header.add("nonce", RandomUtil.randomNumbers(14));
+        header.add("AccessKey",credential.getAccessKey());
+        header.add("Timestamp", timestamp);
+        if (apiVersion!=null)header.add("ApiVersion", apiVersion);
+        if (sdkVersion!=null)header.add("SdkVersion", sdkVersion);
         // host 请求体随后添加
         if (request.getIsUnsignedPayload()) {
-            header.put("Content-SHA256", "UNSIGNED-PAYLOAD");
+            header.add("Content-SHA256", "UNSIGNED-PAYLOAD");
         } else {
-            header.put("Content-SHA256", hashedRequestPayload);
+            header.add("Content-SHA256", hashedRequestPayload);
         }
         if (null != request.getHeader()) {
-            header.putAll(request.getHeader());
+            header.addAll(Headers.of(request.getHeader()));
         }
         return header;
     }
@@ -314,7 +385,7 @@ public abstract class AbstractClient {
     /**
      * @Description 获取规范的请求头
      * @author polaris
-     * @create 2024/4/8
+     * @date 2024/4/8
      * @return {@link Map< String, String>}
      */
     public static Map<String,String> getCanonicalHeader(String method,String timestamp,String contentType,String endpoint){
@@ -337,7 +408,7 @@ public abstract class AbstractClient {
     /**
      * @Description 尝试将响应体解析为map
      * @author polaris
-     * @create 2024/4/8
+     * @date 2024/4/8
      * @return {@link Map< String, Object>}
      */
     private Map<String, Object> parseJson(Map<String, Object> data,String body){
@@ -355,7 +426,7 @@ public abstract class AbstractClient {
     /**
      * @Description 获取规范查询参数
      * @author polaris
-     * @create 2024/4/8
+     * @date 2024/4/8
      * @return {@link String}
      */
     private static String getCanonicalQueryString (HashMap<String, String> params, String method)
